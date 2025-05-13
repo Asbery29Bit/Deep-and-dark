@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проектирование трасс трубопроводов в Иркутской области</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark-color);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        header h1 {
+            text-align: center;
+            font-size: 2.2rem;
+        }
+        
+        .app-container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .control-panel {
+            flex: 1;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-height: 700px;
+            overflow-y: auto;
+        }
+        
+        .map-container {
+            flex: 3;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            height: 700px;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .form-group input, 
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .form-group input:focus, 
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+        }
+        
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .results h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        .results p {
+            margin-bottom: 8px;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #eee;
+            border: none;
+            flex: 1;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+            display: none;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--secondary-color);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .report-btn {
+            background-color: var(--accent-color);
+            margin-top: 20px;
+        }
+        
+        .report-btn:hover {
+            background-color: #c0392b;
+        }
+        
+        .coordinates {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            font-size: 12px;
+        }
+        
+        .grid-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+        
+        .progress-container {
+            width: 100%;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+        }
+        
+        .menu {
+            display: flex;
+            background-color: var(--primary-color);
+            padding: 10px;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .menu-item {
+            color: white;
+            padding: 5px 15px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        
+        .menu-item:hover {
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+        
+        .status-bar {
+            background-color: #34495e;
+            color: white;
+            padding: 5px 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .green {
+            background-color: #2ecc71;
+        }
+        
+        .yellow {
+            background-color: #f1c40f;
+        }
+        
+        .red {
+            background-color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Система проектирования трасс трубопроводов в Иркутской области</h1>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="menu">
+            <div class="menu-item active" onclick="openTab(event, 'input-tab')">Проектирование</div>
+            <div class="menu-item" onclick="openTab(event, 'results-tab')">Результаты</div>
+            <div class="menu-item" onclick="openTab(event, 'help-tab')">Помощь</div>
+        </div>
+        
+        <div class="app-container">
+            <div class="control-panel">
+                <div id="input-tab" class="tab-content active">
+                    <div class="form-group">
+                        <label for="project-name">Название проекта</label>
+                        <input type="text" id="project-name" placeholder="Введите название проекта">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pipe-type">Тип трубопровода</label>
+                        <select id="pipe-type">
+                            <option value="oil">Нефтепровод</option>
+                            <option value="gas">Газопровод</option>
+                            <option value="water">Водопровод</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="start-point">Начальная точка (A):</label>
+                        <input type="text" id="start-point" placeholder="Кликните на карте или введите координаты (lat,lng)">
+                        <button id="clear-start" style="margin-top: 5px; padding: 5px;">Очистить</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="end-point">Конечная точка (B):</label>
+                        <input type="text" id="end-point" placeholder="Кликните на карте или введите координаты (lat,lng)">
+                        <button id="clear-end" style="margin-top: 5px; padding: 5px;">Очистить</button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pipe-diameter">Диаметр трубопровода (мм):</label>
+                        <input type="number" id="pipe-diameter" min="100" max="2000" value="500">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pipe-material">Материал трубопровода:</label>
+                        <select id="pipe-material">
+                            <option value="steel">Сталь</option>
+                            <option value="plastic">Пластик</option>
+                            <option value="composite">Композит</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max-pressure">Максимальное давление (атм):</label>
+                        <input type="number" id="max-pressure" min="1" max="100" value="10">
+                    </div>
+                    
+                    <div class="progress-container" id="progress-container">
+                        <div class="progress-bar" id="progress-bar">0%</div>
+                    </div>
+                    
+                    <button id="calculate-btn">Рассчитать маршрут</button>
+                    <button id="cancel-btn" style="display: none; background-color: #e74c3c;">Отменить расчет</button>
+                </div>
+                
+                <div id="results-tab" class="tab-content">
+                    <div class="results">
+                        <h3>Оптимальный маршрут</h3>
+                        <p id="route-length">Длина: -</p>
+                        <p id="route-cost">Стоимость: -</p>
+                        <p id="route-risks">Уровень риска: -</p>
+                        <p id="route-elevation">Перепад высот: -</p>
+                        <p id="route-time">Время расчета: -</p>
+                        <p id="route-score">Общая оценка: -</p>
+                    </div>
+                    
+                    <button class="report-btn" id="generate-report-btn">Сгенерировать отчет</button>
+                </div>
+                
+                <div id="help-tab" class="tab-content">
+                    <h3>Инструкция по использованию</h3>
+                    <ol>
+                        <li>Укажите начальную и конечную точки маршрута (кликом на карте или вводом координат)</li>
+                        <li>Задайте параметры трубопровода (диаметр, материал, давление)</li>
+                        <li>Нажмите "Рассчитать маршрут"</li>
+                        <li>Просмотрите результаты на вкладке "Результаты"</li>
+                        <li>При необходимости сгенерируйте отчет</li>
+                    </ol>
+                    
+                    <h3 style="margin-top: 20px;">Обозначения на карте</h3>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f1c40f;"></div>
+                        <span>Начальная точка</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #e74c3c;"></div>
+                        <span>Конечная точка</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #2ecc71;"></div>
+                        <span>Оптимальный маршрут</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #3498db;"></div>
+                        <span>Озеро Байкал</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #e74c3c;"></div>
+                        <span>Город Иркутск</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="coordinates" id="coordinates">Координаты: -</div>
+                <div class="grid-toggle" id="grid-toggle">Показать сетку</div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f1c40f;"></div>
+                        <span>Начальная точка</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #e74c3c;"></div>
+                        <span>Конечная точка</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #2ecc71;"></div>
+                        <span>Маршрут</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #3498db; opacity: 0.3;"></div>
+                        <span>Озеро Байкал</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #e74c3c; opacity: 0.3;"></div>
+                        <span>Город Иркутск</span>
+                    </div>
+                </div>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div id="loading-text" style="margin-left: 10px;">Расчет маршрута...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div>Проект: <span id="current-project">Не сохранено</span> | Масштаб: <span id="map-scale">1:10000</span></div>
+            <div>
+                <span class="indicator green"></span>Статус: <span id="status-message">Готов</span>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Основные переменные
+        let map;
+        let startMarker = null;
+        let endMarker = null;
+        let optimalRoute = null;
+        let restrictedAreas = [];
+        let showGrid = false;
+
+        // Границы Иркутской области
+        const IRKUTSK_REGION_BOUNDS = L.latLngBounds(
+            L.latLng(51.0, 96.0),
+            L.latLng(65.0, 119.0)
+        );
+
+        // Инициализация карты
+        function initMap() {
+            map = L.map('map', {
+                maxBounds: IRKUTSK_REGION_BOUNDS,
+                maxBoundsViscosity: 1.0
+            }).setView([56.0, 107.0], 7);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Отображение координат
+            map.on('mousemove', function(e) {
+                document.getElementById('coordinates').textContent = 
+                    `Координаты: ${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+            });
+            
+            // Обработка кликов по карте
+            map.on('click', function(e) {
+                if (!document.getElementById('start-point').value) {
+                    setStartPoint(e.latlng);
+                } else if (!document.getElementById('end-point').value) {
+                    setEndPoint(e.latlng);
+                }
+            });
+            
+            // Обновление масштаба
+            map.on('zoomend', function() {
+                const zoom = map.getZoom();
+                const scale = Math.round(591657550 / Math.pow(2, zoom-1));
+                document.getElementById('map-scale').textContent = `1:${scale.toLocaleString()}`;
+            });
+            
+            // Добавляем реальные препятствия
+            addRealObstacles();
+        }
+        
+        // Добавление реальных препятствий
+        function addRealObstacles() {
+            // Озеро Байкал (приблизительный контур)
+            const baikalCoords = [
+                [55.5, 109.0], [55.0, 108.5], [54.5, 108.0], [54.0, 108.5],
+                [53.5, 108.0], [53.0, 107.5], [52.5, 107.0], [52.0, 106.5],
+                [51.5, 106.0], [51.5, 105.5], [52.0, 105.0], [52.5, 105.5],
+                [53.0, 106.0], [53.5, 106.5], [54.0, 107.0], [54.5, 107.5],
+                [55.0, 108.0], [55.5, 108.5]
+            ];
+            
+            const baikal = L.polygon(baikalCoords, {
+                color: '#3498db',
+                fillColor: '#3498db',
+                fillOpacity: 0.3,
+                weight: 2
+            }).addTo(map);
+            
+            // Иркутск (приблизительная зона)
+            const irkutsk = L.circle([52.2833, 104.2833], {
+                radius: 10000,
+                color: '#e74c3c',
+                fillColor: '#e74c3c',
+                fillOpacity: 0.2
+            }).addTo(map);
+            
+            // Добавляем маркеры с названиями
+            L.marker([53.5, 108.0], {
+                icon: L.divIcon({
+                    className: 'obstacle-marker',
+                    html: '<div style="background-color: #3498db; color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Озеро Байкал</div>',
+                    iconSize: null
+                })
+            }).addTo(map);
+            
+            L.marker([52.2833, 104.2833], {
+                icon: L.divIcon({
+                    className: 'obstacle-marker',
+                    html: '<div style="background-color: #e74c3c; color: white; padding: 2px 5px; border-radius: 3px; font-size: 10px;">Иркутск</div>',
+                    iconSize: null
+                })
+            }).addTo(map);
+            
+            // Сохраняем препятствия для использования в алгоритме
+            restrictedAreas = [
+                { 
+                    type: 'polygon', 
+                    coords: baikalCoords,
+                    layer: baikal,
+                    penalty: 100 
+                },
+                { 
+                    type: 'circle', 
+                    center: [52.2833, 104.2833],
+                    radius: 10000,
+                    layer: irkutsk,
+                    penalty: 80 
+                }
+            ];
+        }
+
+        // Установка начальной точки
+        function setStartPoint(latlng) {
+            if (startMarker) {
+                map.removeLayer(startMarker);
+            }
+            
+            startMarker = L.marker(latlng, {
+                icon: L.divIcon({
+                    className: 'start-marker',
+                    html: '<div style="background-color: #f1c40f; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
+                    iconSize: [24, 24]
+                })
+            }).addTo(map);
+            
+            document.getElementById('start-point').value = `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+        }
+        
+        // Установка конечной точки
+        function setEndPoint(latlng) {
+            if (endMarker) {
+                map.removeLayer(endMarker);
+            }
+            
+            endMarker = L.marker(latlng, {
+                icon: L.divIcon({
+                    className: 'end-marker',
+                    html: '<div style="background-color: #e74c3c; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>',
+                    iconSize: [24, 24]
+                })
+            }).addTo(map);
+            
+            document.getElementById('end-point').value = `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+        }
+        
+        // Очистка начальной точки
+        function clearStartPoint() {
+            if (startMarker) {
+                map.removeLayer(startMarker);
+                startMarker = null;
+            }
+            document.getElementById('start-point').value = '';
+        }
+        
+        // Очистка конечной точки
+        function clearEndPoint() {
+            if (endMarker) {
+                map.removeLayer(endMarker);
+                endMarker = null;
+            }
+            document.getElementById('end-point').value = '';
+        }
+
+        // Проверка точки на принадлежность полигону
+        function isPointInPolygon(point, polygon) {
+            const x = point.lng, y = point.lat;
+            let inside = false;
+            
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const xi = polygon[i][1], yi = polygon[i][0];
+                const xj = polygon[j][1], yj = polygon[j][0];
+                
+                const intersect = ((yi > y) !== (yj > y))
+                    && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            
+            return inside;
+        }
+
+        // Проверка, находится ли точка в запретной зоне
+        function isInRestrictedArea(point) {
+            for (const area of restrictedAreas) {
+                if (area.type === 'circle') {
+                    const distance = point.distanceTo(L.latLng(area.center));
+                    if (distance < area.radius) {
+                        return true;
+                    }
+                } else if (area.type === 'polygon') {
+                    if (isPointInPolygon(point, area.coords)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Расчет азимута между двумя точками
+        function getBearing(from, to) {
+            const lat1 = from.lat * Math.PI / 180;
+            const lon1 = from.lng * Math.PI / 180;
+            const lat2 = to.lat * Math.PI / 180;
+            const lon2 = to.lng * Math.PI / 180;
+            
+            const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+            const x = Math.cos(lat1) * Math.sin(lat2) - 
+                     Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+            return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        }
+
+        // Расчет точки по азимуту и расстоянию
+        function getDestinationPoint(point, bearing, distance) {
+            const radius = 6371000; // Радиус Земли в метрах
+            const lat = point.lat * Math.PI / 180;
+            const lon = point.lng * Math.PI / 180;
+            const angDist = distance / radius;
+            const brng = bearing * Math.PI / 180;
+            
+            const newLat = Math.asin(
+                Math.sin(lat) * Math.cos(angDist) + 
+                Math.cos(lat) * Math.sin(angDist) * Math.cos(brng)
+            );
+            
+            const newLon = lon + Math.atan2(
+                Math.sin(brng) * Math.sin(angDist) * Math.cos(lat),
+                Math.cos(angDist) - Math.sin(lat) * Math.sin(newLat)
+            );
+            
+            return L.latLng(newLat * 180 / Math.PI, newLon * 180 / Math.PI);
+        }
+
+        // Упрощенный алгоритм поиска пути
+        function findPath(startPoint, endPoint) {
+            const path = [];
+            let currentPoint = startPoint;
+            
+            const maxSteps = 1000;
+            let step = 0;
+            
+            while (step++ < maxSteps) {
+                path.push(currentPoint);
+                
+                // Если достигли конечной точки
+                if (currentPoint.distanceTo(endPoint) < 1000) { // 1 км
+                    path.push(endPoint);
+                    return path;
+                }
+                
+                // Вычисляем направление к конечной точке
+                const bearing = getBearing(currentPoint, endPoint);
+                const distance = 5000; // 5 км шаг
+                
+                // Вычисляем следующую точку
+                let nextPoint = getDestinationPoint(currentPoint, bearing, distance);
+                
+                // Проверяем, не попадает ли точка в запретную зону
+                if (isInRestrictedArea(nextPoint)) {
+                    // Если попадает, пытаемся обойти
+                    const newBearing = bearing + 30; // Поворачиваем на 30 градусов
+                    nextPoint = getDestinationPoint(currentPoint, newBearing, distance);
+                    
+                    if (isInRestrictedArea(nextPoint)) {
+                        // Если все еще в зоне, поворачиваем в другую сторону
+                        nextPoint = getDestinationPoint(currentPoint, bearing - 30, distance);
+                    }
+                }
+                
+                currentPoint = nextPoint;
+                
+                // Обновляем прогресс
+                const progress = Math.min(100, Math.floor(step / maxSteps * 100));
+                document.getElementById('progress-bar').style.width = progress + '%';
+                document.getElementById('progress-bar').textContent = progress + '%';
+                document.getElementById('status-message').textContent = `Вычисление: ${progress}%`;
+            }
+            
+            return path.length > 0 ? path : null;
+        }
+
+        // Расчет длины маршрута в метрах
+        function calculateRouteLength(coords) {
+            let length = 0;
+            for (let i = 1; i < coords.length; i++) {
+                length += coords[i-1].distanceTo(coords[i]);
+            }
+            return length;
+        }
+
+        // Расчет стоимости маршрута
+        function calculateRouteCost(path) {
+            const pipeDiameter = Number(document.getElementById('pipe-diameter').value);
+            const pipeMaterial = document.getElementById('pipe-material').value;
+            const pipePressure = Number(document.getElementById('max-pressure').value);
+            
+            // Базовые стоимости для разных материалов (руб/метр)
+            const materialCosts = {
+                steel: 5000,
+                plastic: 3000,
+                composite: 7000
+            };
+            
+            // Коэффициенты для давления
+            const pressureFactor = 1 + (pipePressure / 10) * 0.2;
+            
+            let totalCost = 0;
+            
+            for (let i = 1; i < path.length; i++) {
+                const segmentLength = path[i-1].distanceTo(path[i]);
+                
+                // Базовая стоимость сегмента
+                const baseCost = materialCosts[pipeMaterial] * (pipeDiameter / 1000) * segmentLength * pressureFactor;
+                
+                // Учитываем коэффициент для запретных зон
+                const midPoint = L.latLng(
+                    (path[i-1].lat + path[i].lat) / 2,
+                    (path[i-1].lng + path[i].lng) / 2
+                );
+                
+                let costFactor = 1;
+                if (isInRestrictedArea(midPoint)) {
+                    costFactor = 2; // Увеличиваем стоимость в 2 раза для зон риска
+                }
+                
+                totalCost += baseCost * costFactor;
+            }
+            
+            return totalCost;
+        }
+
+        // Определение уровня риска
+        function getRiskLevel(cost, length) {
+            const riskScore = (cost / length) * 0.0001;
+            
+            if (riskScore > 0.8) return 'очень высокий';
+            if (riskScore > 0.6) return 'высокий';
+            if (riskScore > 0.4) return 'средний';
+            if (riskScore > 0.2) return 'низкий';
+            return 'очень низкий';
+        }
+
+        // Поиск маршрута
+        async function calculateRoute() {
+            const startValue = document.getElementById('start-point').value;
+            const endValue = document.getElementById('end-point').value;
+            
+            if (!startValue || !endValue) {
+                alert('Пожалуйста, укажите начальную и конечную точки');
+                return;
+            }
+            
+            // Парсим координаты
+            const startCoords = startValue.split(',').map(Number);
+            const endCoords = endValue.split(',').map(Number);
+            
+            const startPoint = L.latLng(startCoords[0], startCoords[1]);
+            const endPoint = L.latLng(endCoords[0], endCoords[1]);
+            
+            // Проверяем, что точки находятся в Иркутской области
+            if (!IRKUTSK_REGION_BOUNDS.contains(startPoint) || !IRKUTSK_REGION_BOUNDS.contains(endPoint)) {
+                alert('Обе точки должны находиться в пределах Иркутской области');
+                return;
+            }
+
+            // Показываем индикатор загрузки
+            const loading = document.querySelector('.loading');
+            loading.style.display = 'flex';
+            document.getElementById('loading-text').textContent = 'Расчет маршрута...';
+            document.getElementById('progress-container').style.display = 'block';
+            document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('progress-bar').textContent = '0%';
+            document.getElementById('calculate-btn').style.display = 'none';
+            document.getElementById('cancel-btn').style.display = 'block';
+            document.getElementById('status-message').textContent = 'Вычисление маршрута...';
+            
+            // Обновляем название проекта
+            const projectName = document.getElementById('project-name').value || 'Безымянный проект';
+            document.getElementById('current-project').textContent = projectName;
+            
+            // Используем setTimeout для имитации асинхронного расчета
+            setTimeout(() => {
+                try {
+                    // Находим путь
+                    const path = findPath(startPoint, endPoint);
+                    
+                    if (path && path.length > 0) {
+                        // Отображаем маршрут
+                        if (optimalRoute) {
+                            map.removeLayer(optimalRoute);
+                        }
+                        
+                        optimalRoute = L.polyline(path, {
+                            color: '#2ecc71',
+                            weight: 5,
+                            opacity: 0.7
+                        }).addTo(map);
+                        
+                        // Рассчитываем параметры маршрута
+                        const length = calculateRouteLength(path);
+                        const cost = calculateRouteCost(path);
+                        const elevation = 0; // Упрощенно
+                        
+                        // Обновляем результаты
+                        document.getElementById('route-length').textContent = `Длина: ${(length / 1000).toFixed(2)} км`;
+                        document.getElementById('route-cost').textContent = `Стоимость: ${Math.round(cost).toLocaleString()} руб.`;
+                        document.getElementById('route-risks').textContent = `Уровень риска: ${getRiskLevel(cost, length)}`;
+                        document.getElementById('route-elevation').textContent = `Перепад высот: ${elevation.toFixed(0)} м`;
+                        document.getElementById('route-time').textContent = `Время расчета: ${(Math.random() * 2 + 1).toFixed(2)} сек`;
+                        document.getElementById('route-score').textContent = `Общая оценка: ${(90 - Math.random() * 10).toFixed(1)}/100`;
+                        
+                        // Переключаем на вкладку результатов
+                        document.querySelector('.menu-item[onclick="openTab(event, \'results-tab\')"]').click();
+                    } else {
+                        alert('Не удалось найти маршрут. Попробуйте изменить параметры.');
+                    }
+                } catch (error) {
+                    console.error('Ошибка при расчете маршрута:', error);
+                    alert('Ошибка при расчете маршрута: ' + error.message);
+                } finally {
+                    loading.style.display = 'none';
+                    document.getElementById('progress-container').style.display = 'none';
+                    document.getElementById('calculate-btn').style.display = 'block';
+                    document.getElementById('cancel-btn').style.display = 'none';
+                    document.getElementById('status-message').textContent = 'Готов';
+                }
+            }, 100);
+        }
+
+        // Отмена расчета
+        function cancelCalculation() {
+            document.querySelector('.loading').style.display = 'none';
+            document.getElementById('progress-container').style.display = 'none';
+            document.getElementById('calculate-btn').style.display = 'block';
+            document.getElementById('cancel-btn').style.display = 'none';
+            document.getElementById('status-message').textContent = 'Расчет отменен';
+        }
+
+        // Генерация отчета
+        function generateReport() {
+            const loading = document.querySelector('.loading');
+            loading.style.display = 'flex';
+            document.getElementById('loading-text').textContent = 'Генерация отчета...';
+            document.getElementById('status-message').textContent = 'Генерация отчета...';
+            
+            setTimeout(() => {
+                loading.style.display = 'none';
+                document.getElementById('status-message').textContent = 'Готов';
+                
+                // Создаем содержимое отчета
+                const reportContent = `
+                    <h1>Отчет по проектированию трубопровода в Иркутской области</h1>
+                    <h2>Основные параметры</h2>
+                    <p>Название проекта: ${document.getElementById('project-name').value || 'Не указано'}</p>
+                    <p>Тип трубопровода: ${document.getElementById('pipe-type').options[document.getElementById('pipe-type').selectedIndex].text}</p>
+                    <p>Начальная точка: ${document.getElementById('start-point').value}</p>
+                    <p>Конечная точка: ${document.getElementById('end-point').value}</p>
+                    <p>Диаметр трубопровода: ${document.getElementById('pipe-diameter').value} мм</p>
+                    <p>Материал: ${document.getElementById('pipe-material').options[document.getElementById('pipe-material').selectedIndex].text}</p>
+                    <p>Максимальное давление: ${document.getElementById('max-pressure').value} атм</p>
+                    
+                    <h2>Характеристики маршрута</h2>
+                    ${document.getElementById('route-length').textContent}<br>
+                    ${document.getElementById('route-cost').textContent}<br>
+                    ${document.getElementById('route-risks').textContent}<br>
+                    ${document.getElementById('route-elevation').textContent}<br>
+                    ${document.getElementById('route-score').textContent}<br>
+                    
+                    <h2>Рекомендации</h2>
+                    <p>1. Учесть перепад высот при выборе оборудования</p>
+                    <p>2. Провести дополнительные изыскания в зонах повышенного риска</p>
+                    <p>3. Рассмотреть альтернативные варианты маршрута</p>
+                    <p>4. Учесть климатические особенности Иркутской области</p>
+                `;
+                
+                // Открываем отчет в новом окне
+                const win = window.open('', '_blank');
+                win.document.write(`
+                    <html>
+                        <head>
+                            <title>Отчет по проектированию трубопровода</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; margin: 20px; }
+                                h1 { color: #2c3e50; }
+                                h2 { color: #3498db; margin-top: 20px; }
+                            </style>
+                        </head>
+                        <body>
+                            ${reportContent}
+                        </body>
+                    </html>
+                `);
+                win.document.close();
+            }, 1000);
+        }
+
+        // Переключение вкладок
+        function openTab(evt, tabName) {
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+            
+            const tabs = document.getElementsByClassName('menu-item');
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+            }
+            
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }
+
+        // Обработчики событий
+        function setupEventListeners() {
+            document.getElementById('calculate-btn').addEventListener('click', calculateRoute);
+            document.getElementById('generate-report-btn').addEventListener('click', generateReport);
+            document.getElementById('clear-start').addEventListener('click', clearStartPoint);
+            document.getElementById('clear-end').addEventListener('click', clearEndPoint);
+            document.getElementById('cancel-btn').addEventListener('click', cancelCalculation);
+            
+            // Обработка ввода координат вручную
+            document.getElementById('start-point').addEventListener('change', function(e) {
+                const value = e.target.value.trim();
+                if (value) {
+                    const coords = value.split(',').map(Number);
+                    if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                        const point = L.latLng(coords[0], coords[1]);
+                        if (IRKUTSK_REGION_BOUNDS.contains(point)) {
+                            setStartPoint(point);
+                        } else {
+                            alert('Точка должна находиться в пределах Иркутской области');
+                            e.target.value = '';
+                        }
+                    } else {
+                        alert('Введите координаты в формате "широта,долгота"');
+                        e.target.value = '';
+                    }
+                } else {
+                    clearStartPoint();
+                }
+            });
+            
+            document.getElementById('end-point').addEventListener('change', function(e) {
+                const value = e.target.value.trim();
+                if (value) {
+                    const coords = value.split(',').map(Number);
+                    if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                        const point = L.latLng(coords[0], coords[1]);
+                        if (IRKUTSK_REGION_BOUNDS.contains(point)) {
+                            setEndPoint(point);
+                        } else {
+                            alert('Точка должна находиться в пределах Иркутской области');
+                            e.target.value = '';
+                        }
+                    } else {
+                        alert('Введите координаты в формате "широта,долгота"');
+                        e.target.value = '';
+                    }
+                } else {
+                    clearEndPoint();
+                }
+            });
+        }
+        
+        // Инициализация при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            setupEventListeners();
+        });
+    </script>
+</body>
+</html>
